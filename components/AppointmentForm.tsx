@@ -33,6 +33,8 @@ export default function AppointmentForm({ appt, defaultDate, onClose, onSaved }:
   const [procedure, setProcedure] = useState<Procedure | null>(editing ? appt!.procedure : '1');
   const [master, setMaster] = useState<string | null>(editing ? appt!.master : MASTERS[0]);
   const [comment, setComment] = useState(appt?.comment ?? '');
+  const [phone, setPhone] = useState(appt?.phone ?? '');
+  const phoneTouched = useRef(editing);
   const [hint, setHint] = useState('');
   const [knownNames, setKnownNames] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -65,14 +67,15 @@ export default function AppointmentForm({ appt, defaultDate, onClose, onSaved }:
     const t = setTimeout(async () => {
       const { data } = await sb()
         .from('appointments')
-        .select('procedure, visit_date')
+        .select('procedure, visit_date, phone')
         .ilike('client_name', escapeLike(n))
         .neq('status', 'cancelled')
         .order('visit_date', { ascending: false })
         .order('visit_time', { ascending: false })
         .limit(1);
-      const last = (data?.[0] ?? null) as { procedure: Procedure | null; visit_date: string } | null;
+      const last = (data?.[0] ?? null) as { procedure: Procedure | null; visit_date: string; phone: string | null } | null;
       if (last) {
+        if (last.phone && !phoneTouched.current) setPhone(last.phone);
         setHint(`Постоянная клиентка · последняя: ${procedureShort(last.procedure)}, ${shortDate(last.visit_date)}`);
         if (!procTouched.current) setProcedure(nextProcedure(last.procedure));
       } else {
@@ -119,6 +122,7 @@ export default function AppointmentForm({ appt, defaultDate, onClose, onSaved }:
       procedure,
       master,
       comment: comment.trim() || null,
+      phone: phone.trim() || null,
     };
 
     const res = editing
@@ -174,6 +178,23 @@ export default function AppointmentForm({ appt, defaultDate, onClose, onSaved }:
             {knownNames.map((n) => <option key={n} value={n} />)}
           </datalist>
           {hint && <p className="px-4 text-[13px] text-muted">{hint}</p>}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="client-phone" className={sectionLabel}>Телефон (WhatsApp)</label>
+          <input
+            id="client-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="8 777 123 45 67 — необязательно"
+            value={phone}
+            onChange={(e) => {
+              phoneTouched.current = true;
+              setPhone(e.target.value);
+            }}
+            className="tabular h-[52px] rounded-[14px] bg-card px-4 outline-none"
+          />
         </div>
 
         <div className="overflow-hidden rounded-[14px] bg-card">
