@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { sb, notifyTeam } from '@/lib/supabase';
-import { MASTERS } from '@/lib/config';
+import { FOUNDER, MASTERS } from '@/lib/config';
 import { shortDate, suggestedTime, todayISO } from '@/lib/dates';
 import {
   hm, nextProcedure, procedureShort, PROCEDURES,
@@ -252,7 +252,15 @@ export default function AppointmentForm({ appt, defaultDate, onClose, onSaved }:
                 type="button"
                 aria-pressed={master === m}
                 onClick={() => setMaster(m)}
-                className={`h-10 rounded-[10px] text-[17px] ${master === m ? 'bg-card font-semibold shadow-sm' : 'bg-transparent'}`}
+                className={`h-10 rounded-[10px] text-[17px] ${
+                  master === m
+                    ? m === FOUNDER
+                      ? 'bg-[#FBF1DC] font-semibold text-[#8A5A00] shadow-sm'
+                      : 'bg-card font-semibold shadow-sm'
+                    : m === FOUNDER
+                      ? 'bg-transparent text-[#8A5A00]'
+                      : 'bg-transparent'
+                }`}
               >
                 {m}
               </button>
