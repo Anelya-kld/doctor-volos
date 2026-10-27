@@ -60,6 +60,35 @@ export function longDate(iso: string): string {
   return `${d.getUTCDate()} ${MONTHS_GEN[d.getUTCMonth()]}`;
 }
 
+const MONTHS_NOM = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+];
+
+/** Первое число месяца: "2026-10-27" → "2026-10-01" */
+export function monthStart(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+/** Последнее число месяца */
+export function monthEnd(iso: string): string {
+  const d = toDate(monthStart(iso));
+  d.setUTCMonth(d.getUTCMonth() + 1, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+/** "октябрь 2026" */
+export function monthTitle(iso: string): string {
+  const d = toDate(iso);
+  return `${MONTHS_NOM[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** "в октябре" */
+export function monthPrepositional(iso: string): string {
+  const forms = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
+  return `в ${forms[toDate(iso).getUTCMonth()]}`;
+}
+
 /** "26 окт" */
 export function shortDate(iso: string): string {
   const d = toDate(iso);
