@@ -1,0 +1,204 @@
+// Виджет «Доктор волос — записи на сегодня» для приложения Scriptable (iPhone).
+// Первый запуск — в самом Scriptable: спросит почту и пароль от расписания один раз.
+// Пароль не сохраняется: телефон хранит только ключ входа в защищённой связке ключей.
+
+const SITE = 'https://doctor-volos.vercel.app';
+const SUPABASE_URL = 'https://bndgocbmplzrvplribeu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_A4F-MtOy88QDsoBmvdWqXQ_KdRCzFW5';
+const FOUNDER = 'Асель';
+const TOKEN_KEY = 'doctor-volos-refresh-token';
+
+const C = {
+  bg: new Color('#FFFFFF'),
+  ink: new Color('#1D1D1F'),
+  muted: new Color('#6E6E73'),
+  accent: new Color('#0071E3'),
+  gold: new Color('#8A5A00'),
+  done: new Color('#248A3D'),
+  line: new Color('#E5E5EA'),
+};
+
+// ---------- время Алматы (UTC+5) ----------
+function almatyNow() {
+  return new Date(Date.now() + 5 * 3600 * 1000);
+}
+function todayISO() {
+  return almatyNow().toISOString().slice(0, 10);
+}
+function nowHM() {
+  return almatyNow().toISOString().slice(11, 16);
+}
+const WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+function dateLabel() {
+  const d = almatyNow();
+  return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+function plural(n, one, few, many) {
+  const n10 = n % 10, n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return one;
+  if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return few;
+  return many;
+}
+function procShort(p) {
+  if (!p) return '';
+  if (p === 'repeat') return 'повт.';
+  if (p === 'consult') return 'конс.';
+  return `${p}-я`;
+}
+
+// ---------- вход ----------
+async function authRequest(body, grant) {
+  const req = new Request(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`);
+  req.method = 'POST';
+  req.headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
+  req.body = JSON.stringify(body);
+  const res = await req.loadJSON();
+  if (!res.access_token) throw new Error(res.error_description || res.msg || 'Не удалось войти');
+  Keychain.set(TOKEN_KEY, res.refresh_token);
+  return res.access_token;
+}
+
+async function askLogin() {
+  const a = new Alert();
+  a.title = 'Доктор волос';
+  a.message = 'Войдите один раз — той же почтой и паролем, что и на сайте расписания.';
+  a.addTextField('Почта');
+  a.addSecureTextField('Пароль');
+  a.addAction('Войти');
+  a.addCancelAction('Отмена');
+  if ((await a.presentAlert()) === -1) throw new Error('Вход отменён');
+  return authRequest({ email: a.textFieldValue(0).trim(), password: a.textFieldValue(1) }, 'password');
+}
+
+async function accessToken() {
+  if (Keychain.contains(TOKEN_KEY)) {
+    try {
+      return await authRequest({ refresh_token: Keychain.get(TOKEN_KEY) }, 'refresh_token');
+    } catch (e) {
+      Keychain.remove(TOKEN_KEY);
+    }
+  }
+  if (config.runsInWidget) throw new Error('Откройте Scriptable и запустите скрипт, чтобы войти');
+  return askLogin();
+}
+
+// ---------- данные ----------
+async function loadToday(token) {
+  const q =
+    `select=client_name,visit_time,procedure,master,status` +
+    `&visit_date=eq.${todayISO()}&status=neq.cancelled&order=visit_time`;
+  const req = new Request(`${SUPABASE_URL}/rest/v1/appointments?${q}`);
+  req.headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` };
+  const rows = await req.loadJSON();
+  if (!Array.isArray(rows)) throw new Error('Нет связи с расписанием');
+  return rows;
+}
+
+// ---------- внешний вид ----------
+function text(stack, str, size, color, weight) {
+  const t = stack.addText(str);
+  t.font = weight === 'bold' ? Font.boldSystemFont(size) : weight === 'semibold' ? Font.semiboldSystemFont(size) : Font.systemFont(size);
+  t.textColor = color;
+  t.lineLimit = 1;
+  return t;
+}
+
+function row(stack, a, isNext) {
+  const r = stack.addStack();
+  r.centerAlignContent();
+  const time = text(r, a.visit_time.slice(0, 5), 13, isNext ? C.accent : C.ink, 'semibold');
+  time.font = new Font('Menlo-Bold', 12);
+  r.addSpacer(8);
+  const col = r.addStack();
+  col.layoutVertically();
+  text(col, a.client_name, 14, C.ink, 'semibold');
+  const sub = [procShort(a.procedure), a.master].filter(Boolean).join(' · ');
+  if (sub) text(col, sub, 11, a.master === FOUNDER ? C.gold : C.muted);
+  r.addSpacer();
+}
+
+function build(rows, error) {
+  const w = new ListWidget();
+  w.backgroundColor = C.bg;
+  w.url = SITE;
+  w.setPadding(14, 14, 14, 14);
+  w.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
+  const family = config.widgetFamily || 'medium';
+
+  if (error) {
+    text(w, 'ДОКТОР ВОЛОС', 11, C.accent, 'bold');
+    w.addSpacer(6);
+    const t = w.addText(error);
+    t.font = Font.systemFont(13);
+    t.textColor = C.muted;
+    return w;
+  }
+
+  const now = nowHM();
+  const upcoming = rows.filter((a) => a.status !== 'done' && a.visit_time.slice(0, 5) >= now);
+  const doneCount = rows.filter((a) => a.status === 'done').length;
+  const maxRows = family === 'large' ? 8 : family === 'small' ? 1 : 3;
+  const list = upcoming.slice(0, maxRows);
+
+  if (family === 'small') {
+    text(w, 'СЕГОДНЯ', 11, C.accent, 'bold');
+    text(w, dateLabel(), 12, C.ink, 'semibold');
+    w.addSpacer(4);
+    text(w, String(rows.length), 34, C.ink, 'bold');
+    text(w, plural(rows.length, 'запись', 'записи', 'записей'), 12, C.muted);
+    w.addSpacer();
+    if (list[0]) text(w, `${list[0].visit_time.slice(0, 5)} ${list[0].client_name}`, 12, C.accent, 'semibold');
+    else text(w, 'Больше никого', 12, C.muted);
+    return w;
+  }
+
+  const main = w.addStack();
+  const left = main.addStack();
+  left.layoutVertically();
+  left.size = new Size(92, 0);
+  text(left, 'СЕГОДНЯ', 11, C.accent, 'bold');
+  text(left, dateLabel(), 13, C.ink, 'semibold');
+  left.addSpacer();
+  text(left, String(rows.length), 38, C.ink, 'bold');
+  text(left, plural(rows.length, 'запись', 'записи', 'записей'), 12, C.muted);
+  if (doneCount) text(left, `${doneCount} заверш.`, 11, C.done);
+  left.addSpacer();
+  text(left, `обновлено ${now}`, 10, C.muted);
+
+  main.addSpacer(12);
+  const right = main.addStack();
+  right.layoutVertically();
+  if (!list.length) {
+    right.addSpacer();
+    text(right, rows.length ? 'На сегодня всё' : 'Записей нет', 14, C.muted, 'semibold');
+    right.addSpacer();
+  } else {
+    list.forEach((a, i) => {
+      if (i) right.addSpacer();
+      row(right, a, i === 0);
+    });
+    const rest = upcoming.length - list.length;
+    if (rest > 0) {
+      right.addSpacer(4);
+      text(right, `ещё ${rest}`, 11, C.muted);
+    }
+  }
+  return w;
+}
+
+// ---------- запуск ----------
+let widget;
+try {
+  const token = await accessToken();
+  widget = build(await loadToday(token));
+} catch (e) {
+  widget = build([], e.message);
+}
+
+if (config.runsInWidget) {
+  Script.setWidget(widget);
+} else {
+  await widget.presentMedium();
+}
+Script.complete();
