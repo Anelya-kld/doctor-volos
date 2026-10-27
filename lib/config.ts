@@ -1,6 +1,9 @@
 // Мастера центра. Чтобы добавить нового мастера — допишите имя в этот список.
 export const MASTERS = ['Асель', 'Эльзора'] as const;
 
+// Основательница центра — её записи выделяются отдельным цветом.
+export const FOUNDER = 'Асель';
+
 export const CENTER_NAME = 'Доктор волос';
 export const TIME_ZONE = 'Asia/Almaty';
 
