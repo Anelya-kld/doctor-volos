@@ -8,6 +8,8 @@ interface Props {
   date: string;               // выбранный день
   today: string;
   counts: Map<string, number>; // сколько записей в каждый день
+  open: boolean;              // true — весь месяц, false — одна неделя
+  onToggle: () => void;
   onSelect: (iso: string) => void;
   onMonth: (firstDay: string) => void;
 }
@@ -18,32 +20,40 @@ function shiftMonth(first: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function MonthCalendar({ month, date, today, counts, onSelect, onMonth }: Props) {
-  const gridStart = weekStart(month);
+export default function MonthCalendar({ month, date, today, counts, open, onToggle, onSelect, onMonth }: Props) {
   const monthKey = month.slice(0, 7);
   const cells: string[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = addDays(gridStart, i);
-    if (i >= 35 && d.slice(0, 7) !== monthKey) break; // не рисовать лишнюю пустую неделю
-    cells.push(d);
+  if (open) {
+    const gridStart = weekStart(month);
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(gridStart, i);
+      if (i >= 35 && d.slice(0, 7) !== monthKey) break; // не рисовать лишнюю пустую неделю
+      cells.push(d);
+    }
+  } else {
+    const start = weekStart(date);
+    for (let i = 0; i < 7; i++) cells.push(addDays(start, i));
   }
 
+  const prev = () => (open ? onMonth(shiftMonth(month, -1)) : onSelect(addDays(date, -7)));
+  const next = () => (open ? onMonth(shiftMonth(month, 1)) : onSelect(addDays(date, 7)));
+
   return (
-    <section aria-label="Календарь на месяц" className="mt-4 rounded-2xl bg-card px-2 pt-2 pb-3">
+    <section aria-label="Календарь" className="mt-4 rounded-2xl bg-card px-2 pt-2 pb-1">
       <div className="flex items-center justify-between px-1">
         <button
           type="button"
-          aria-label="Прошлый месяц"
-          onClick={() => onMonth(shiftMonth(month, -1))}
+          aria-label={open ? 'Прошлый месяц' : 'Прошлая неделя'}
+          onClick={prev}
           className="flex h-11 w-11 items-center justify-center text-accent"
         >
           <ChevronIcon dir="left" />
         </button>
-        <h2 className="text-[17px] font-semibold capitalize">{monthTitle(month)}</h2>
+        <h2 className="text-[17px] font-semibold capitalize">{monthTitle(open ? month : date)}</h2>
         <button
           type="button"
-          aria-label="Следующий месяц"
-          onClick={() => onMonth(shiftMonth(month, 1))}
+          aria-label={open ? 'Следующий месяц' : 'Следующая неделя'}
+          onClick={next}
           className="flex h-11 w-11 items-center justify-center text-accent"
         >
           <ChevronIcon dir="right" />
@@ -58,7 +68,7 @@ export default function MonthCalendar({ month, date, today, counts, onSelect, on
 
       <div className="grid grid-cols-7 gap-y-1">
         {cells.map((d) => {
-          const inMonth = d.slice(0, 7) === monthKey;
+          const inMonth = !open || d.slice(0, 7) === monthKey;
           const selected = d === date;
           const isToday = d === today;
           const n = counts.get(d) ?? 0;
@@ -86,6 +96,18 @@ export default function MonthCalendar({ month, date, today, counts, onSelect, on
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="mx-auto flex h-9 items-center gap-1 px-3 text-[13px] font-semibold text-muted"
+      >
+        {open ? 'Свернуть' : 'Весь месяц'}
+        <span className={`inline-flex transition-transform ${open ? '-rotate-90' : 'rotate-90'}`}>
+          <ChevronIcon size={14} dir="right" />
+        </span>
+      </button>
     </section>
   );
 }
