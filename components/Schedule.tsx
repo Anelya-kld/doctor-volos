@@ -4,18 +4,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sb, notifyTeam } from '@/lib/supabase';
 import { CENTER_NAME } from '@/lib/config';
 import {
-  addDays, isValidISODate, longDate, nowHM, plural, todayISO, weekStart, weekdayName,
+  isValidISODate, longDate, monthEnd, monthPrepositional, monthStart, nowHM, plural, todayISO, weekdayName,
 } from '@/lib/dates';
 import { registerServiceWorker, refreshSubscription } from '@/lib/push';
 import { hm, type Appointment } from '@/lib/types';
 import AppointmentCard from './AppointmentCard';
 import AppointmentForm from './AppointmentForm';
 import SearchSheet from './SearchSheet';
-import WeekStrip from './WeekStrip';
+import MonthCalendar from './MonthCalendar';
 import PushBanner, { usePushState } from './PushBanner';
 import { SearchIcon } from './icons';
 
 type SheetState = { mode: 'add' } | { mode: 'edit'; appt: Appointment } | null;
+type MonthRow = { visit_date: string; procedure: string | null; is_new_client: boolean };
 
 function dateFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
@@ -30,7 +31,9 @@ export default function Schedule() {
   const [items, setItems] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [offline, setOffline] = useState(false);
-  const [marked, setMarked] = useState<Set<string>>(new Set());
+  const [month, setMonth] = useState(() => monthStart(dateFromUrl() ?? todayISO()));
+  const [monthCounts, setMonthCounts] = useState<Map<string, number>>(new Map());
+  const [stats, setStats] = useState<{ total: number; fresh: number; repeat: number } | null>(null);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
@@ -40,6 +43,8 @@ export default function Schedule() {
   dateRef.current = date;
   const todayRef = useRef(today);
   todayRef.current = today;
+  const monthRef = useRef(month);
+  monthRef.current = month;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadDay = useCallback(async (d: string) => {
@@ -59,35 +64,49 @@ export default function Schedule() {
     setLoaded(true);
   }, []);
 
-  const loadWeek = useCallback(async (d: string) => {
-    const start = weekStart(d);
+  // Все записи месяца: для календаря (сколько записей в день) и статистики.
+  const loadMonth = useCallback(async (first: string) => {
     const { data } = await sb()
       .from('appointments')
-      .select('visit_date')
-      .gte('visit_date', start)
-      .lte('visit_date', addDays(start, 6))
-      .neq('status', 'cancelled');
-    if (weekStart(dateRef.current) !== start) return;
-    setMarked(new Set(((data ?? []) as { visit_date: string }[]).map((r) => r.visit_date)));
+      .select('visit_date, procedure, is_new_client')
+      .gte('visit_date', first)
+      .lte('visit_date', monthEnd(first))
+      .neq('status', 'cancelled')
+      .limit(5000);
+    if (monthRef.current !== first) return;
+    const rows = (data ?? []) as MonthRow[];
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.visit_date, (counts.get(r.visit_date) ?? 0) + 1);
+    setMonthCounts(counts);
+    setStats({
+      total: rows.length,
+      fresh: rows.filter((r) => r.is_new_client).length,
+      repeat: rows.filter((r) => r.procedure === 'repeat').length,
+    });
   }, []);
 
   const refresh = useCallback(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     refreshTimer.current = setTimeout(() => {
       loadDay(dateRef.current);
-      loadWeek(dateRef.current);
+      loadMonth(monthRef.current);
     }, 150);
-  }, [loadDay, loadWeek]);
+  }, [loadDay, loadMonth]);
 
   // Смена дня → загрузить и обновить адрес страницы.
   useEffect(() => {
     setLoaded(false);
     setShowCancelled(false);
     loadDay(date);
-    loadWeek(date);
+    setMonth(monthStart(date));
     const url = date === todayRef.current ? '/' : `/?date=${date}`;
     window.history.replaceState(null, '', url);
-  }, [date, loadDay, loadWeek]);
+  }, [date, loadDay]);
+
+  // Смена месяца → календарь и статистика.
+  useEffect(() => {
+    loadMonth(month);
+  }, [month, loadMonth]);
 
   // Живая синхронизация: любое изменение у любого сотрудника → обновить экран.
   useEffect(() => {
@@ -211,12 +230,37 @@ export default function Schedule() {
         </div>
       </div>
 
-      <header className="mt-2 px-1">
-        <p className="text-[17px] font-semibold text-accent">{weekdayName(date)}</p>
-        <h1 className="text-[34px] leading-10 font-bold tracking-[-0.6px]">{longDate(date)}</h1>
+      <section aria-label="Итоги месяца" className="mt-3">
+        <p className="px-1 text-[13px] text-muted">Итоги {monthPrepositional(month)}</p>
+        <div className="mt-1.5 grid grid-cols-3 gap-2">
+          {[
+            { label: 'Всего клиентов', value: stats?.total },
+            { label: 'Новых', value: stats?.fresh },
+            { label: 'Повторных', value: stats?.repeat },
+          ].map((s) => (
+            <div key={s.label} className="rounded-2xl bg-card px-3 py-2.5">
+              <p className="tabular text-[24px] leading-7 font-bold">{s.value ?? '–'}</p>
+              <p className="text-[12px] leading-4 text-muted">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <MonthCalendar
+        month={month}
+        date={date}
+        today={today}
+        counts={monthCounts}
+        onSelect={setDate}
+        onMonth={setMonth}
+      />
+
+      <header className="mt-5 px-1">
+        <p className="text-[15px] font-semibold text-accent">{weekdayName(date)}</p>
+        <h1 className="text-[28px] leading-8 font-bold tracking-[-0.5px]">{longDate(date)}</h1>
       </header>
 
-      <div className="mt-3 flex items-center justify-between gap-3 px-1">
+      <div className="mt-2 flex items-center justify-between gap-3 px-1">
         <div className="min-w-0">
           <p className="text-[15px] font-semibold">
             {loaded ? (active.length ? `${active.length} ${plural(active.length, ['клиент', 'клиента', 'клиентов'])}` : 'Записей нет') : '\u00A0'}
@@ -231,8 +275,6 @@ export default function Schedule() {
           + Записать клиента
         </button>
       </div>
-
-      <WeekStrip date={date} today={today} marked={marked} onSelect={setDate} />
 
       <PushBanner state={push} onChange={setPush} />
 
