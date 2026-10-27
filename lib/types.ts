@@ -10,6 +10,7 @@ export interface Appointment {
   procedure: Procedure | null; // null — не указано
   master: string | null;       // null — мастер не выбран
   comment: string | null;
+  phone: string | null;
   status: Status;
   is_new_client: boolean;
   created_at: string;
