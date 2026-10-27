@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Виджет — Доктор волос</title>
+<style>
+  body{margin:0;background:#F5F5F7;color:#1D1D1F;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  main{max-width:440px;margin:0 auto;padding:32px 20px}
+  h1{font-size:26px;margin:0 0 8px}
+  p{color:#6E6E73;font-size:16px;line-height:1.45;margin:0 0 20px}
+  button{width:100%;height:56px;border:0;border-radius:16px;background:#0071E3;color:#fff;font-size:18px;font-weight:600}
+  button.ok{background:#248A3D}
+  ol{padding-left:22px;font-size:16px;line-height:1.55;margin:24px 0 0}
+  li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Виджет на iPhone</h1>
+  <p>Нажмите кнопку — текст виджета скопируется. Потом вставьте его в приложение Scriptable.</p>
+  <button id="copy" type="button">Скопировать виджет</button>
+  <ol>
+    <li>Откройте <b>Scriptable</b> → <b>+</b> (справа вверху).</li>
+    <li>Нажмите на пустое поле → <b>Вставить</b>.</li>
+    <li>Сверху нажмите «Untitled Script» и назовите <b>Доктор волос</b>.</li>
+    <li>Нажмите <b>▶</b> внизу и войдите своей почтой и паролем.</li>
+    <li>Нажмите <b>Done</b>.</li>
+  </ol>
+</main>
+<script>
+  const btn = document.getElementById('copy');
+  btn.addEventListener('click', async () => {
+    try {
+      const text = await (await fetch('/widget.txt', { cache: 'no-store' })).text();
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Скопировано ✓';
+      btn.className = 'ok';
+    } catch (e) {
+      btn.textContent = 'Не получилось — откройте /widget.txt';
+    }
+  });
+</script>
+</body>
+</html>
