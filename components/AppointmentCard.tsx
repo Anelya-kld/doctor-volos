@@ -1,7 +1,8 @@
 'use client';
 
 import { hm, masterLabel, procedureLabel, type Appointment } from '@/lib/types';
-import { CheckIcon, NoteIcon } from './icons';
+import { formatPhone, whatsappLink } from '@/lib/phone';
+import { ChatIcon, CheckIcon, NoteIcon } from './icons';
 
 interface Props {
   a: Appointment;
@@ -13,6 +14,7 @@ export default function AppointmentCard({ a, onOpen, onToggleDone }: Props) {
   const done = a.status === 'done';
   const cancelled = a.status === 'cancelled';
   const dim = done || cancelled;
+  const wa = whatsappLink(a.phone);
 
   return (
     <div className={`flex items-center gap-3 rounded-2xl bg-card py-3 pr-3 pl-4 ${cancelled ? 'opacity-70' : ''}`}>
@@ -36,6 +38,9 @@ export default function AppointmentCard({ a, onOpen, onToggleDone }: Props) {
               </span>
             )}
           </span>
+          {a.phone && (
+            <span className="tabular truncate text-[14px] text-[#1E7A3C]">{formatPhone(a.phone)}</span>
+          )}
           <span className="flex min-w-0 items-center gap-1.5 text-[14px] text-muted">
             <span className="truncate">
               {cancelled ? 'Отменена · ' : ''}
@@ -45,6 +50,18 @@ export default function AppointmentCard({ a, onOpen, onToggleDone }: Props) {
           </span>
         </span>
       </button>
+
+      {wa && (
+        <a
+          href={wa}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Написать в WhatsApp: ${formatPhone(a.phone)}`}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E9F7EE] text-[#1E7A3C]"
+        >
+          <ChatIcon size={20} />
+        </a>
+      )}
 
       {!cancelled && (
         <button
