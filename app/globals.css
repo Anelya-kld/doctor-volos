@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #F5F5F7;
+  --color-card: #FFFFFF;
+  --color-ink: #1D1D1F;
+  --color-muted: #86868B;
+  --color-line: #E5E5EA;
+  --color-accent: #0071E3;
+  --color-accent-soft: #E8F1FC;
+  --color-done: #248A3D;
+  --color-danger: #D70015;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+select {
+  font-size: 17px; /* не меньше 16px — иначе iPhone приближает экран */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 16px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.animate-fade {
+  animation: fade-in 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet,
+  .animate-fade {
+    animation: none;
+  }
+}
