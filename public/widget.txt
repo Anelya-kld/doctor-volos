@@ -184,6 +184,7 @@ function build(rows, error) {
       text(right, `ещё ${rest}`, 11, C.muted);
     }
   }
+  main.addSpacer();
   return w;
 }
 
