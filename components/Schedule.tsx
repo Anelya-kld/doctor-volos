@@ -38,6 +38,22 @@ export default function Schedule() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [push, setPush] = usePushState();
+  const [calOpen, setCalOpen] = useState(false);
+
+  // Свёрнут календарь или нет — запоминается на этом телефоне.
+  useEffect(() => {
+    try {
+      setCalOpen(localStorage.getItem('dv-calendar-open') === '1');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  function toggleCal() {
+    setCalOpen((v) => {
+      try { localStorage.setItem('dv-calendar-open', v ? '0' : '1'); } catch { /* ignore */ }
+      return !v;
+    });
+  }
 
   const dateRef = useRef(date);
   dateRef.current = date;
@@ -251,6 +267,8 @@ export default function Schedule() {
         date={date}
         today={today}
         counts={monthCounts}
+        open={calOpen}
+        onToggle={toggleCal}
         onSelect={setDate}
         onMonth={setMonth}
       />
