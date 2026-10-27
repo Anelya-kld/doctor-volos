@@ -2,6 +2,7 @@
 
 import { hm, masterLabel, procedureLabel, type Appointment } from '@/lib/types';
 import { formatPhone, whatsappLink } from '@/lib/phone';
+import { FOUNDER } from '@/lib/config';
 import { ChatIcon, CheckIcon, NoteIcon } from './icons';
 
 interface Props {
@@ -15,9 +16,14 @@ export default function AppointmentCard({ a, onOpen, onToggleDone }: Props) {
   const cancelled = a.status === 'cancelled';
   const dim = done || cancelled;
   const wa = whatsappLink(a.phone);
+  const founder = a.master === FOUNDER;
 
   return (
-    <div className={`flex items-center gap-3 rounded-2xl bg-card py-3 pr-3 pl-4 ${cancelled ? 'opacity-70' : ''}`}>
+    <div
+      className={`flex items-center gap-3 rounded-2xl bg-card py-3 pr-3 pl-4 ${cancelled ? 'opacity-70' : ''} ${
+        founder && !dim ? 'shadow-[inset_4px_0_0_#C9962B]' : ''
+      }`}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -44,7 +50,12 @@ export default function AppointmentCard({ a, onOpen, onToggleDone }: Props) {
           <span className="flex min-w-0 items-center gap-1.5 text-[14px] text-muted">
             <span className="truncate">
               {cancelled ? 'Отменена · ' : ''}
-              {procedureLabel(a.procedure)} · {masterLabel(a.master)}
+              {procedureLabel(a.procedure)} ·{' '}
+              {founder ? (
+                <span className="rounded-md bg-[#FBF1DC] px-1.5 py-[1px] font-semibold text-[#8A5A00]">{a.master}</span>
+              ) : (
+                masterLabel(a.master)
+              )}
             </span>
             {a.comment && <NoteIcon />}
           </span>
